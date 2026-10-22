@@ -203,6 +203,7 @@ describe('page survives URL-driven changes (Table auto page reset)', () => {
     await act(() => new Promise((r) => setTimeout(r, 10)))
     await act(async () => fireEvent.click(screen.getByText('paid')))
     expect(screen.getByTestId('page').textContent).toBe('0')
+    await act(() => new Promise((r) => setTimeout(r, 350)))
     expect(search()).toBe('?f.status=paid')
   })
 })
@@ -231,5 +232,17 @@ describe('data that loads after mount', () => {
     await act(() => new Promise((r) => setTimeout(r, 30)))
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Globex', 'Initech, "Inc"'])
     expect(search()).toBe('?page=2')
+  })
+})
+
+describe('debounce from a later page', () => {
+  it('debounces the first keystroke that also returns to page 1', () => {
+    vi.useFakeTimers()
+    setUrl('?page=3')
+    render(<FilterTable />)
+    fireEvent.change(screen.getByLabelText('search'), { target: { value: 'a' } })
+    expect(search()).toBe('?page=3')
+    act(() => vi.advanceTimersByTime(300))
+    expect(search()).toBe('?q=a')
   })
 })

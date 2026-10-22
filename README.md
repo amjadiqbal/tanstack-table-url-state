@@ -196,7 +196,7 @@ real cell types and freezes a bold header row.
 
 ## What's tested
 
-- 45 unit tests (Vitest + jsdom): the codec (round trips, defaults, prefixes, malformed input), the
+- 46 unit tests (Vitest + jsdom): the codec (round trips, defaults, prefixes, malformed input), the
   React hook with a real `useTable` from `@tanstack/react-table` 9.3.1 and `window.history`,
   the Router adapter with a real TanStack Router 1.170 router, back/forward and deep links that
   keep the page, CSV quoting and formula escaping, and the XLSX file structure.

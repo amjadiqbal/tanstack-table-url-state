@@ -134,7 +134,7 @@ export function useTableUrlState(options: UseTableUrlStateOptions = {}): UseTabl
       adapter.write(patch, { history: historyRef.current })
     }
     cancelPending()
-    const onlyFilters = prev !== null && changedSlices(prev, state).every((s) => FILTER_SLICES.has(s))
+    const onlyFilters = prev !== null && isFilterEdit(prev, state)
     if (onlyFilters && debounceMs > 0) timerRef.current = setTimeout(write, debounceMs)
     else write()
   }, [state, adapter, codec, debounceMs])
@@ -188,6 +188,17 @@ export function useTableUrlState(options: UseTableUrlStateOptions = {}): UseTabl
   const reset = useCallback(() => setState(decodeState({}, codec)), [codec])
 
   return { state, tableOptions, reset }
+}
+
+// Typing in a filter, including the return to page 1 it causes, is debounced.
+function isFilterEdit(prev: UrlTableState, next: UrlTableState): boolean {
+  const changed = changedSlices(prev, next)
+  if (!changed.some((s) => FILTER_SLICES.has(s))) return false
+  return changed.every(
+    (s) =>
+      FILTER_SLICES.has(s) ||
+      (s === 'pagination' && next.pagination.pageIndex === 0 && next.pagination.pageSize === prev.pagination.pageSize),
+  )
 }
 
 function changedSlices(a: UrlTableState, b: UrlTableState): UrlStateSlice[] {
