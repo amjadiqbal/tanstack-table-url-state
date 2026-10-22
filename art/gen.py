@@ -127,7 +127,7 @@ def banner(c, name):
   <text x="235" y="160" font-family="{SANS}" font-size="64" font-weight="700" fill="{c["text"]}">Table URL State</text>
   <text x="238" y="198" font-family="{SANS}" font-size="22" font-weight="500" fill="{c["sub"]}">Sorting, filters &amp; pages in the URL. CSV/XLSX export.</text>
   {chips(238, 220, ["two-way sync", "Router adapter", "CSV · XLSX"], c)}
-  {demo(860, 40, 300, c, ("/orders", "?sort=total.desc&amp;page=3"), ROWS3, 0.92, export=False)}
+  {demo(860, 40, 300, c, ("/orders", "?sort=-total&amp;page=3"), ROWS3, 0.92, export=False)}
   <text x="1160" y="275" text-anchor="end" font-family="{SANS}" font-size="15" fill="{c["foot"]}">{name}</text>
 </svg>
 '''
@@ -146,7 +146,7 @@ def social(c, name):
   {chips(80, 320, ["sorting", "column filters", "global filter", "pagination"], c, size=18, h=40, gap=12, cw=10.2)}
   {chips(80, 372, ["column visibility", "Router adapter", "React"], c, size=18, h=40, gap=12, cw=10.2)}
   {chips(80, 424, ["URLSearchParams fallback"], c, size=18, h=40, gap=12, cw=10.2)}
-  {demo(760, 316, 440, c, ("/orders", "?sort=total.desc&amp;status=paid&amp;page=3"), rows, 1.0)}
+  {demo(760, 316, 440, c, ("/orders", "?sort=-total&amp;f.status=paid&amp;page=3"), rows, 1.0)}
   <text x="80" y="590" font-family="{SANS}" font-size="20" fill="{c["foot"]}">Free and open source · MIT · by Amjad Iqbal</text>
 </svg>
 '''

@@ -5,8 +5,7 @@ import { type CodecOptions, decodeValue, encodeValue, resolveCodec } from './cod
 
 /**
  * Adapter for TanStack Router. Reads the router's parsed search and writes
- * through `router.navigate`, so loaders, `useSearch` and devtools all see the
- * change. Works the same in TanStack Start.
+ * through `router.navigate`, so `useSearch()` sees every change.
  *
  * ```tsx
  * const adapter = useTanStackRouterAdapter()

@@ -9,7 +9,7 @@
 
 Keep a **TanStack Table v9** table's sorting, column filters, global filter, pagination and
 column visibility in the **URL search params**, so a filtered, sorted page can be bookmarked,
-shared and restored with the back button. Works with **TanStack Router / TanStack Start** or with
+shared and restored with the back button. Works with **TanStack Router** or with
 plain `URLSearchParams` and `window.history`. Export the current view to **CSV**, or to **XLSX**
 from a separate entry that you load only when someone clicks Export.
 
@@ -68,7 +68,7 @@ const table = useTable({
 })
 ```
 
-## TanStack Router and TanStack Start
+## TanStack Router
 
 ```tsx
 import { createFileRoute } from '@tanstack/react-router'
@@ -92,7 +92,7 @@ function Orders() {
 ```
 
 The adapter reads the router's location and navigates to the same route with the new search, so
-loaders, `useSearch` and the devtools see every change. Because the router reads search values as
+`useSearch()` and anything else that reads the router's search see every change. Because the router reads search values as
 JSON, `?page=3` arrives in `useSearch()` as the number `3`.
 
 For server-side data, read the same params in your loader (`page`, `size`, `sort`, `q`, `f.<id>`)
@@ -201,7 +201,7 @@ real cell types and freezes a bold header row.
   the Router adapter with a real TanStack Router 1.170 router, back/forward and deep links that
   keep the page, CSV quoting and formula escaping, and the XLSX file structure.
 - Tried by hand in a Vite + TanStack Router app in Chrome: see the release notes for what was checked.
-- Not covered yet: Solid/Vue/Svelte adapters, React Router or Next.js adapters (use a custom
+- Not covered yet: TanStack Start (SSR) apps, Solid/Vue/Svelte adapters, React Router or Next.js adapters (use a custom
   adapter), server-side query building, and SSR without the Router adapter (the history adapter
   reads nothing on the server, so the first render uses the defaults).
 
