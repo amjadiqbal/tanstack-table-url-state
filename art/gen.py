@@ -147,7 +147,7 @@ def social(c, name):
   {chips(80, 372, ["column visibility", "Router adapter", "React"], c, size=18, h=40, gap=12, cw=10.2)}
   {chips(80, 424, ["URLSearchParams fallback"], c, size=18, h=40, gap=12, cw=10.2)}
   {demo(760, 316, 440, c, ("/orders", "?sort=-total&amp;f.status=paid&amp;page=3"), rows, 1.0)}
-  <text x="80" y="590" font-family="{SANS}" font-size="20" fill="{c["foot"]}">Free and open source · MIT · by Amjad Iqbal</text>
+  <text x="80" y="590" font-family="{SANS}" font-size="20" fill="{c["foot"]}">Free and open source · MIT · by Amjad</text>
 </svg>
 '''
 
