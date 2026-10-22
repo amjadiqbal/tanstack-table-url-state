@@ -13,7 +13,8 @@ All notable changes to this project are documented here. The format follows
 - `useTableUrlState()`: two-way sync of TanStack Table v9 sorting, column filters, global
   filter, pagination and column visibility with the URL. Defaults are left out of the URL,
   filter typing is debounced, `prefix`/`keys`/`defaults`/`slices` options, `replace` or `push`
-  history, and `reset()`.
+  history, and `reset()`. Turns off Table's `autoResetPageIndex` and resets the page itself on
+  user sorting and filtering, so links, back/forward and late data keep the page.
 - History adapter (`window.history` + `URLSearchParams`) and the `UrlAdapter` interface for
   other routers.
 - `/router`: `useTanStackRouterAdapter()` and `validateTableSearch()` for TanStack Router and Start.

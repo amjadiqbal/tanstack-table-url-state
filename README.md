@@ -118,6 +118,11 @@ useTableUrlState({
 It returns `{ state, tableOptions, reset }`. `reset()` restores the defaults and removes this
 table's params, leaving every other param alone.
 
+**Page resets.** When pagination is synced, `tableOptions` turns off Table's `autoResetPageIndex`
+and the hook returns to page 1 itself when the user sorts or filters. That way a shared link,
+back/forward, or data that loads after mount keeps `page=` instead of jumping to page 1. Pass
+your own `autoResetPageIndex` after the spread if you want Table's behaviour back.
+
 | State | Param | Example |
 |---|---|---|
 | sorting | `sort` | `sort=-total,customer` (`-` = descending) |
@@ -191,10 +196,10 @@ real cell types and freezes a bold header row.
 
 ## What's tested
 
-- 40 unit tests (Vitest + jsdom): the codec (round trips, defaults, prefixes, malformed input), the
+- 45 unit tests (Vitest + jsdom): the codec (round trips, defaults, prefixes, malformed input), the
   React hook with a real `useTable` from `@tanstack/react-table` 9.3.1 and `window.history`,
-  the Router adapter with a real TanStack Router 1.170 router, CSV quoting and formula escaping,
-  and the XLSX file structure.
+  the Router adapter with a real TanStack Router 1.170 router, back/forward and deep links that
+  keep the page, CSV quoting and formula escaping, and the XLSX file structure.
 - Tried by hand in a Vite + TanStack Router app in Chrome: see the release notes for what was checked.
 - Not covered yet: Solid/Vue/Svelte adapters, React Router or Next.js adapters (use a custom
   adapter), server-side query building, and SSR without the Router adapter (the history adapter

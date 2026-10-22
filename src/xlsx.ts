@@ -22,6 +22,7 @@ export function toXlsx(table: object, options: XlsxOptions = {}): Uint8Array {
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
     '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    colsXml([headers, ...rows]) +
     '<sheetData>' +
     rowXml(headers, 1, true) +
     rows.map((r, i) => rowXml(r, i + 2, false)).join('') +
@@ -58,6 +59,19 @@ function cellXml(value: unknown, ref: string, header: boolean): string {
   }
   const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
   return `<c r="${ref}" t="inlineStr"${s}><is><t xml:space="preserve">${xmlEscape(text)}</t></is></c>`
+}
+
+// Column widths from the longest value in each column, capped so notes do not make huge columns.
+function colsXml(table: unknown[][]): string {
+  const widths: number[] = []
+  for (const row of table) {
+    row.forEach((v, i) => {
+      const len = v instanceof Date ? 19 : v === null || v === undefined ? 0 : String(typeof v === 'object' ? JSON.stringify(v) : v).length
+      widths[i] = Math.max(widths[i] ?? 8, Math.min(len + 2, 60))
+    })
+  }
+  if (widths.length === 0) return ''
+  return '<cols>' + widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('') + '</cols>'
 }
 
 function colName(index: number): string {
@@ -121,4 +135,5 @@ const STYLES =
   '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
   '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
   '</cellXfs>' +
+  '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
   '</styleSheet>'

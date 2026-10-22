@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import { useTable } from '@tanstack/react-table'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -128,5 +129,107 @@ describe('debounce with a real useTable', () => {
     expect(search()).toBe('?tab=billing')
     act(() => vi.advanceTimersByTime(200))
     expect(search()).toBe('?tab=billing&q=ac')
+  })
+})
+
+function PagedTable({ prefix, history }: { prefix?: string; history?: 'push' | 'replace' }) {
+  const { tableOptions } = useTableUrlState({ prefix, history, defaults: { pagination: { pageIndex: 0, pageSize: 2 } } })
+  const table = useTable({ features, columns, data: orders, getRowId: (r) => r.id, ...tableOptions })
+  return (
+    <div>
+      <button onClick={() => table.nextPage()}>next {prefix}</button>
+      <button onClick={() => table.getColumn('status')!.setFilterValue('paid')}>paid {prefix}</button>
+      <output data-testid={'page' + (prefix ?? '')}>{table.state.pagination.pageIndex}</output>
+      <ul>
+        {table.getRowModel().rows.map((r) => (
+          <li key={r.id}>{r.original.customer}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+describe('page survives URL-driven changes (Table auto page reset)', () => {
+  it('opens a deep link on the linked page', () => {
+    setUrl('?sort=-total&page=2')
+    render(<PagedTable />)
+    expect(screen.getByTestId('page').textContent).toBe('1')
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Globex', 'Initech, "Inc"'])
+    expect(search()).toBe('?sort=-total&page=2')
+  })
+
+  it('back restores the page with two tables on the page', async () => {
+    setUrl('')
+    render(
+      <>
+        <PagedTable prefix="o." />
+        <PagedTable prefix="a." history="push" />
+      </>,
+    )
+    fireEvent.click(screen.getByText('next a.'))
+    fireEvent.click(screen.getByText('next a.'))
+    expect(search()).toBe('?a.page=3')
+    await act(async () => {
+      window.history.back()
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    expect(search()).toBe('?a.page=2')
+    expect(screen.getByTestId('pagea.').textContent).toBe('1')
+  })
+
+  it('back to an entry with a different filter and page keeps that page', async () => {
+    setUrl('')
+    render(<PagedTable history="push" />)
+    await act(async () => fireEvent.click(screen.getByText('paid')))
+    await act(async () => fireEvent.click(screen.getByText('next')))
+    expect(search()).toBe('?page=2&f.status=paid')
+    // Clearing the filter in a new entry, then going back, changes filter and page at once.
+    act(() => {
+      window.history.pushState(null, '', '/orders')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    expect(screen.getByTestId('page').textContent).toBe('0')
+    await act(async () => {
+      window.history.back()
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    expect(search()).toBe('?page=2&f.status=paid')
+    expect(screen.getByTestId('page').textContent).toBe('1')
+  })
+
+  it('a filter change by the user still returns to page 1', async () => {
+    setUrl('?page=2')
+    render(<PagedTable />)
+    await act(() => new Promise((r) => setTimeout(r, 10)))
+    await act(async () => fireEvent.click(screen.getByText('paid')))
+    expect(screen.getByTestId('page').textContent).toBe('0')
+    expect(search()).toBe('?f.status=paid')
+  })
+})
+
+function AsyncTable() {
+  const [data, setData] = useState<typeof orders>([])
+  useEffect(() => {
+    const t = setTimeout(() => setData(orders), 5)
+    return () => clearTimeout(t)
+  }, [])
+  const { tableOptions } = useTableUrlState({ defaults: { pagination: { pageIndex: 0, pageSize: 2 } } })
+  const table = useTable({ features, columns, data, getRowId: (r) => r.id, ...tableOptions })
+  return (
+    <ul>
+      {table.getRowModel().rows.map((r) => (
+        <li key={r.id}>{r.original.customer}</li>
+      ))}
+    </ul>
+  )
+}
+
+describe('data that loads after mount', () => {
+  it('keeps the deep-linked page', async () => {
+    setUrl('?page=2')
+    render(<AsyncTable />)
+    await act(() => new Promise((r) => setTimeout(r, 30)))
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Globex', 'Initech, "Inc"'])
+    expect(search()).toBe('?page=2')
   })
 })

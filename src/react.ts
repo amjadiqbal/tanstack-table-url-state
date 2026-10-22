@@ -39,6 +39,11 @@ export interface UrlTableOptions {
   onGlobalFilterChange?: OnChangeFn<any>
   onPaginationChange?: OnChangeFn<PaginationState>
   onColumnVisibilityChange?: OnChangeFn<ColumnVisibilityState>
+  /**
+   * `false` when pagination is synced: the hook resets the page itself when the
+   * user sorts or filters, so back/forward, links and data loads keep `page=`.
+   */
+  autoResetPageIndex?: boolean
 }
 
 export interface UseTableUrlStateResult {
@@ -51,6 +56,7 @@ export interface UseTableUrlStateResult {
 }
 
 const FILTER_SLICES: ReadonlySet<UrlStateSlice> = new Set(['globalFilter', 'columnFilters'])
+const PAGE_RESET_SLICES: ReadonlySet<UrlStateSlice> = new Set(['sorting', 'globalFilter', 'columnFilters'])
 let sharedHistoryAdapter: UrlAdapter | undefined
 
 /**
@@ -93,7 +99,13 @@ export function useTableUrlState(options: UseTableUrlStateOptions = {}): UseTabl
       lastSeenRef.current = seen
       cancelPending()
       fromUrlRef.current = true
-      setState(decodeState(params, codec))
+      const decoded = decodeState(params, codec)
+      // Keep unchanged slices as the same objects so Table does not recompute them.
+      setState((prev) => {
+        const next = { ...decoded }
+        for (const k of Object.keys(next) as UrlStateSlice[]) if (equal(prev[k], next[k])) (next as Record<string, unknown>)[k] = prev[k]
+        return changedSlices(prev, next).length === 0 ? prev : next
+      })
     }
     sync()
     return adapter.subscribe(sync)
@@ -130,13 +142,24 @@ export function useTableUrlState(options: UseTableUrlStateOptions = {}): UseTabl
   // Leaving the page drops a pending write instead of writing onto the next route.
   useEffect(() => cancelPending, [])
 
-  const setSlice = useCallback(<K extends UrlStateSlice>(slice: K, updater: Updater<UrlTableState[K]>) => {
-    setState((prev) => {
-      const value = typeof updater === 'function' ? (updater as (old: UrlTableState[K]) => UrlTableState[K])(prev[slice]) : updater
-      // Table sends fresh but equal objects (e.g. its page reset); keep the old state then.
-      return equal(value, prev[slice]) ? prev : { ...prev, [slice]: value }
-    })
-  }, [])
+  const syncsPages = codec.slices.has('pagination')
+  const setSlice = useCallback(
+    <K extends UrlStateSlice>(slice: K, updater: Updater<UrlTableState[K]>) => {
+      setState((prev) => {
+        const value = typeof updater === 'function' ? (updater as (old: UrlTableState[K]) => UrlTableState[K])(prev[slice]) : updater
+        // Table sends fresh but equal objects; keep the old state then.
+        if (equal(value, prev[slice])) return prev
+        const next = { ...prev, [slice]: value }
+        // Table's own page reset is turned off (it would also fire on back/forward and
+        // on data loads), so a user change to sorting or filters returns to page 1 here.
+        if (syncsPages && PAGE_RESET_SLICES.has(slice) && prev.pagination.pageIndex !== 0) {
+          next.pagination = { ...prev.pagination, pageIndex: 0 }
+        }
+        return next
+      })
+    },
+    [syncsPages],
+  )
 
   const handlers = useMemo(
     () => ({
@@ -155,7 +178,8 @@ export function useTableUrlState(options: UseTableUrlStateOptions = {}): UseTabl
     if (s.has('sorting')) Object.assign(out, { onSortingChange: handlers.onSortingChange }).state.sorting = state.sorting
     if (s.has('columnFilters')) Object.assign(out, { onColumnFiltersChange: handlers.onColumnFiltersChange }).state.columnFilters = state.columnFilters
     if (s.has('globalFilter')) Object.assign(out, { onGlobalFilterChange: handlers.onGlobalFilterChange }).state.globalFilter = state.globalFilter
-    if (s.has('pagination')) Object.assign(out, { onPaginationChange: handlers.onPaginationChange }).state.pagination = state.pagination
+    if (s.has('pagination'))
+      Object.assign(out, { onPaginationChange: handlers.onPaginationChange, autoResetPageIndex: false }).state.pagination = state.pagination
     if (s.has('columnVisibility'))
       Object.assign(out, { onColumnVisibilityChange: handlers.onColumnVisibilityChange }).state.columnVisibility = state.columnVisibility
     return out
