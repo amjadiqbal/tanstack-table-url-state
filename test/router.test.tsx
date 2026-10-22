@@ -12,17 +12,24 @@ import { useTableUrlState } from '../src/index'
 import { useTanStackRouterAdapter, validateTableSearch } from '../src/router'
 import { columns, features, orders } from './fixtures'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  ordersDefaults = {}
+})
+
+let ordersDefaults: Parameters<typeof useTableUrlState>[0] = {}
 
 function Orders() {
   const adapter = useTanStackRouterAdapter()
-  const { tableOptions } = useTableUrlState({ adapter, debounceMs: 0, defaults: { pagination: { pageIndex: 0, pageSize: 2 } } })
+  const { tableOptions } = useTableUrlState({ adapter, debounceMs: 0, defaults: { pagination: { pageIndex: 0, pageSize: 2 } }, ...ordersDefaults })
   const table = useTable({ features, columns, data: orders, getRowId: (r) => r.id, ...tableOptions })
   return (
     <div>
       <button onClick={() => table.getColumn('total')!.toggleSorting(true)}>sort total</button>
       <button onClick={() => table.nextPage()}>next</button>
       <button onClick={() => table.getColumn('status')!.setFilterValue('42')}>filter</button>
+      <button onClick={() => table.getColumn('status')!.setFilterValue(undefined)}>clear status</button>
+      <output data-testid="count">{table.getPrePaginatedRowModel().rows.length}</output>
       <ul>
         {table.getRowModel().rows.map((r) => (
           <li key={r.id}>{r.original.customer}</li>
@@ -87,5 +94,21 @@ describe('TanStack Router adapter', () => {
       await new Promise((r) => setTimeout(r, 20))
     })
     expect(rows()).toEqual(['Acme Ltd', 'Northwind'])
+  })
+})
+
+describe('TanStack Router adapter: cleared default filter (0.1.1)', () => {
+  it('writes f.status= and a new router on that URL keeps it cleared', async () => {
+    ordersDefaults = { defaults: { pagination: { pageIndex: 0, pageSize: 2 }, columnFilters: [{ id: 'status', value: 'paid' }] } }
+    const router = setup('/orders')
+    expect(await screen.findAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByTestId('count').textContent).toBe('3')
+    await act(async () => fireEvent.click(screen.getByText('clear status')))
+    expect(screen.getByTestId('count').textContent).toBe('5')
+    expect(router.state.location.searchStr).toBe('?f.status=')
+    cleanup()
+    setup('/orders' + router.state.location.searchStr)
+    await screen.findAllByRole('listitem')
+    expect(screen.getByTestId('count').textContent).toBe('5')
   })
 })

@@ -12,5 +12,5 @@ export {
   resolveCodec,
 } from './codec'
 export type { CodecOptions, ParamPatch, ResolvedCodec, UrlStateKeys, UrlStateSlice, UrlTableState } from './codec'
-export { applyPatch, createHistoryAdapter } from './adapter'
+export { applyPatch, createHistoryAdapter, notifyUrlChange } from './adapter'
 export type { UrlAdapter } from './adapter'

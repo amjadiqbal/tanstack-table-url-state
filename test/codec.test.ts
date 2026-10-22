@@ -108,3 +108,47 @@ describe('state codec', () => {
     })
   })
 })
+
+describe('clearing a non-empty default (0.1.1)', () => {
+  const c = resolveCodec({ defaults: { globalFilter: 'acme', columnFilters: [{ id: 'status', value: 'paid' }] } })
+
+  it('writes q= for an empty search and reads it back as empty', () => {
+    const params = encodeState({ globalFilter: '' }, c)
+    expect(params).toEqual({ q: '' })
+    expect(decodeState(params as Record<string, string>, c).globalFilter).toBe('')
+    expect(decodeState({}, c).globalFilter).toBe('acme')
+  })
+
+  it('writes f.status= for a cleared default filter', () => {
+    const params = encodeState({ columnFilters: [] }, c)
+    expect(params).toEqual({ 'f.status': '' })
+    expect(decodeState(params as Record<string, string>, c).columnFilters).toEqual([])
+    expect(decodeState({}, c).columnFilters).toEqual([{ id: 'status', value: 'paid' }])
+  })
+
+  it('keeps other filters and marks only the cleared default', () => {
+    const params = encodeState({ columnFilters: [{ id: 'customer', value: 'ac' }] }, c)
+    expect(params).toEqual({ 'f.customer': 'ac', 'f.status': '' })
+    expect(decodeState(params as Record<string, string>, c).columnFilters).toEqual([{ id: 'customer', value: 'ac' }])
+  })
+
+  it('writes nothing when the state equals the defaults', () => {
+    expect(encodeState({ globalFilter: 'acme', columnFilters: [{ id: 'status', value: 'paid' }] }, c)).toEqual({ q: undefined })
+  })
+
+  it('still writes nothing for empty values over empty defaults', () => {
+    expect(encodeState({ globalFilter: '', columnFilters: [] }, codec)).toEqual({ q: undefined })
+  })
+})
+
+describe('page bounds (0.1.1)', () => {
+  it('caps size and page from the URL', () => {
+    expect(decodeState({ size: '1000000', page: '99999999999' }, codec).pagination).toEqual({ pageIndex: 99_999, pageSize: 1000 })
+    const c = resolveCodec({ maxPageSize: 100, maxPage: 50 })
+    expect(decodeState({ size: '500', page: '80' }, c).pagination).toEqual({ pageIndex: 49, pageSize: 100 })
+  })
+
+  it('defaults to page size 10', () => {
+    expect(decodeState({}, codec).pagination).toEqual({ pageIndex: 0, pageSize: 10 })
+  })
+})

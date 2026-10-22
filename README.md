@@ -25,8 +25,8 @@ from a separate entry that you load only when someone clicks Export.
 - **Short URLs.** Defaults are left out of the URL. Sorting is `sort=-total,customer`, filters are one readable param each (`f.status=paid`), and non-string values are JSON (`f.total=[100,5000]`).
 - **Debounced typing.** Filter input reaches the URL after 300 ms; sorting and paging are written at once.
 - **TanStack Router adapter** that writes through `router.navigate`, plus a `validateSearch` helper.
-- **CSV export** of what the user sees: visible columns, filtered and sorted rows, your formatters.
-- **XLSX export** as an optional entry (`/xlsx`), so the main bundle stays small.
+- **CSV export** of the current view: the visible columns and the rows that pass the filters, in sorted order (all pages by default, or only the page on screen). Values come from each column's accessor unless you pass formatters.
+- **XLSX export** from a separate `/xlsx` entry that the main entry never imports. Load it with a dynamic `import()` and your bundler puts it, with its zip dependency `fflate`, in its own chunk.
 - **Typed**, ESM-only, `sideEffects: false`, no telemetry, no network calls.
 
 Community package, not affiliated with TanStack. See the [TanStack Table docs](https://tanstack.com/table).
@@ -112,8 +112,13 @@ useTableUrlState({
   slices: ['sorting', 'pagination'], // sync only some slices
   debounceMs: 300,       // filter typing delay; 0 writes at once
   history: 'replace',    // or 'push' to add back-button entries
+  maxPageSize: 1000,     // larger size= values from the URL are capped
+  maxPage: 100000,       // larger page= values from the URL are capped
 })
 ```
+
+Without `defaults`, the page size is 10 (the same as Table's own default), sorting and filters
+are empty and every column is visible.
 
 It returns `{ state, tableOptions, reset }`. `reset()` restores the defaults and removes this
 table's params, leaving every other param alone.
@@ -135,6 +140,21 @@ your own `autoResetPageIndex` after the spread if you want Table's behaviour bac
 A string filter that looks like another type is quoted so it reads back as a string
 (`f.code="42"`). Malformed params (`page=abc`) are ignored, not thrown.
 
+When a default global filter or column filter is not empty and the user clears it, the param is
+written empty (`q=`, `f.status=`), so a reload or shared link keeps it cleared instead of bringing
+the default back.
+
+`page=` is only capped by `maxPage`; the URL does not know how many rows there are. A page past
+the end shows no rows, like `table.setPageIndex()` would. If that matters, move the user back
+once the data has loaded:
+
+```ts
+useEffect(() => {
+  const last = Math.max(table.getPageCount() - 1, 0)
+  if (table.state.pagination.pageIndex > last) table.setPageIndex(last)
+}, [table.getPageCount()])
+```
+
 ### Other routers
 
 Pass any object with `read`, `write` and `subscribe`:
@@ -151,6 +171,17 @@ const adapter: UrlAdapter = {
 
 The `/core` entry (codec and history adapter) has no React import, so it can be reused outside React.
 
+The built-in history adapter listens for `popstate` (back/forward) and for its own writes. Calls
+to `history.pushState` or `replaceState` from other code fire no event, so call
+`notifyUrlChange()` after them to let the tables catch up:
+
+```ts
+import { notifyUrlChange } from '@amjadiqbal/tanstack-table-url-state'
+
+history.pushState(null, '', '/orders?sort=-total')
+notifyUrlChange()
+```
+
 ## Export
 
 ```tsx
@@ -159,7 +190,8 @@ import { downloadCsv } from '@amjadiqbal/tanstack-table-url-state'
 <button onClick={() => downloadCsv(table, { filename: 'orders.csv' })}>Export CSV</button>
 ```
 
-XLSX loads on demand:
+XLSX lives in the `/xlsx` entry, which imports `fflate` to build the zip. Import it with a
+dynamic `import()` so your bundler splits both into a chunk that downloads on the first click:
 
 ```tsx
 <button
@@ -181,10 +213,18 @@ Both take the same options:
 | `header` | string `header`, else id | `(column) => string` |
 | `format` / `formatters` | none | `(value, { row, column }) => unknown`, for all columns or per column id |
 
-CSV also has `delimiter`, `newline` (`\r\n`), `bom` (for Excel) and `escapeFormulas` (on: text
-cells starting with `= + - @` get a leading `'` so spreadsheets do not run them). Use `toCsv` /
-`toXlsx` for the text or bytes without downloading. XLSX keeps numbers, booleans and dates as
-real cell types and freezes a bold header row.
+Cell values come from `row.getValue(columnId)`, the column's accessor, not from what the `cell`
+renderer shows. Pass `formatters` when the export should match the screen (dates, currency).
+
+CSV also has `delimiter`, `newline` (`\r\n`) and `bom` (for Excel). `escapeFormulas` is on by
+default: any value that is not a number and whose text starts with `=`, `+`, `-`, `@`, a tab or
+a carriage return gets a leading `'`, so spreadsheets do not run it as a formula. Number values
+are left alone, but strings are not, so the string `"-5"` is written as `'-5`. Turn it off with
+`escapeFormulas: false`.
+
+Use `toCsv` / `toXlsx` for the text or bytes without downloading. XLSX keeps numbers, booleans
+and dates as real cell types and freezes a bold header row. It needs no formula escaping: every
+text cell is written as an inline string, never as a formula.
 
 ## Moving from tanstack-table-search-params
 
@@ -196,10 +236,11 @@ real cell types and freezes a bold header row.
 
 ## What's tested
 
-- 46 unit tests (Vitest + jsdom): the codec (round trips, defaults, prefixes, malformed input), the
+- 56 unit tests (Vitest + jsdom): the codec (round trips, defaults, prefixes, malformed input), the
   React hook with a real `useTable` from `@tanstack/react-table` 9.3.1 and `window.history`,
   the Router adapter with a real TanStack Router 1.170 router, back/forward and deep links that
-  keep the page, CSV quoting and formula escaping, and the XLSX file structure.
+  keep the page, clearing non-empty defaults, page bounds, CSV quoting and formula escaping, and
+  the XLSX file structure.
 - Tried by hand in a Vite + TanStack Router app in Chrome: see the release notes for what was checked.
 - Not covered yet: TanStack Start (SSR) apps, Solid/Vue/Svelte adapters, React Router or Next.js adapters (use a custom
   adapter), server-side query building, and SSR without the Router adapter (the history adapter

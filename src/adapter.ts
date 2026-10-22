@@ -48,6 +48,15 @@ export function createHistoryAdapter(): UrlAdapter {
   }
 }
 
+/**
+ * Tell the history adapter that other code changed the URL with
+ * `history.pushState` / `replaceState`. Those calls fire no event, so the
+ * tables would otherwise not see the change until the next back/forward.
+ */
+export function notifyUrlChange(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CHANGE_EVENT))
+}
+
 /** Apply a patch to `URLSearchParams` in place. */
 export function applyPatch(params: URLSearchParams, patch: ParamPatch): void {
   for (const [key, value] of Object.entries(patch)) {

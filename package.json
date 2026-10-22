@@ -1,6 +1,6 @@
 {
   "name": "@amjadiqbal/tanstack-table-url-state",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "URL state (sorting, filters, pagination, column visibility) and CSV/XLSX export for TanStack Table v9.",
   "license": "MIT",
   "author": "Amjad Iqbal (https://amjad.com.pk)",

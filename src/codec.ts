@@ -50,6 +50,10 @@ export interface CodecOptions {
   defaults?: Partial<UrlTableState>
   /** Which slices to sync. Defaults to all five. */
   slices?: readonly UrlStateSlice[]
+  /** Larger `size=` values from the URL are capped to this. Default 1000. */
+  maxPageSize?: number
+  /** Larger `page=` values from the URL are capped to this (1-based). Default 100000. */
+  maxPage?: number
 }
 
 /** A flat map of search params. `undefined` means "remove this param". */
@@ -59,6 +63,8 @@ export interface ResolvedCodec {
   keys: UrlStateKeys
   defaults: UrlTableState
   slices: ReadonlySet<UrlStateSlice>
+  maxPageSize: number
+  maxPage: number
   /** True when `key` is one of this codec's params. */
   owns: (key: string) => boolean
 }
@@ -78,6 +84,8 @@ export function resolveCodec(options: CodecOptions = {}): ResolvedCodec {
     keys,
     defaults,
     slices,
+    maxPageSize: options.maxPageSize ?? 1000,
+    maxPage: options.maxPage ?? 100_000,
     owns: (key) =>
       (fixed.has(key) && sliceOfKey(keys, key, slices)) ||
       (slices.has('columnFilters') && key.startsWith(keys.columnFilterPrefix) && key.length > keys.columnFilterPrefix.length),
@@ -139,7 +147,9 @@ export function encodeState(state: Partial<UrlTableState>, codec: ResolvedCodec)
 
   if (slices.has('globalFilter') && 'globalFilter' in state) {
     const v = state.globalFilter
-    out[keys.globalFilter] = isEmpty(v) || equal(v, defaults.globalFilter) ? undefined : encodeValue(v)
+    const d = defaults.globalFilter
+    // An empty search over a non-empty default is written as `q=` so it reads back as empty.
+    out[keys.globalFilter] = equal(v, d) || (isEmpty(v) && isEmpty(d)) ? undefined : isEmpty(v) ? '' : encodeValue(v)
   }
 
   if (slices.has('pagination') && state.pagination) {
@@ -156,9 +166,14 @@ export function encodeState(state: Partial<UrlTableState>, codec: ResolvedCodec)
   }
 
   if (slices.has('columnFilters') && state.columnFilters) {
-    const filters = equal(state.columnFilters, defaults.columnFilters) ? [] : state.columnFilters
-    for (const f of filters) {
-      if (!isEmpty(f.value)) out[keys.columnFilterPrefix + f.id] = encodeValue(f.value)
+    if (!equal(state.columnFilters, defaults.columnFilters)) {
+      for (const f of state.columnFilters) {
+        if (!isEmpty(f.value)) out[keys.columnFilterPrefix + f.id] = encodeValue(f.value)
+      }
+      // A default filter the user cleared is written empty (`f.status=`) so the default does not come back.
+      for (const d of defaults.columnFilters) {
+        if (!(keys.columnFilterPrefix + d.id in out)) out[keys.columnFilterPrefix + d.id] = ''
+      }
     }
   }
 
@@ -188,8 +203,8 @@ export function decodeState(params: Record<string, string>, codec: ResolvedCodec
   if (slices.has('pagination')) {
     const page = toInt(params[keys.page])
     const size = toInt(params[keys.pageSize])
-    if (page !== undefined && page >= 1) state.pagination.pageIndex = page - 1
-    if (size !== undefined && size >= 1) state.pagination.pageSize = size
+    if (page !== undefined && page >= 1) state.pagination.pageIndex = Math.min(page, codec.maxPage) - 1
+    if (size !== undefined && size >= 1) state.pagination.pageSize = Math.min(size, codec.maxPageSize)
   }
 
   const hide = params[keys.columnVisibility]
@@ -203,12 +218,15 @@ export function decodeState(params: Record<string, string>, codec: ResolvedCodec
 
   if (slices.has('columnFilters')) {
     const filters: ColumnFiltersState = []
+    let present = false
     for (const [key, raw] of Object.entries(params)) {
       if (key.startsWith(keys.columnFilterPrefix) && key.length > keys.columnFilterPrefix.length) {
-        filters.push({ id: key.slice(keys.columnFilterPrefix.length), value: decodeValue(raw) })
+        present = true
+        // `f.status=` marks a cleared default filter.
+        if (raw !== '') filters.push({ id: key.slice(keys.columnFilterPrefix.length), value: decodeValue(raw) })
       }
     }
-    if (filters.length > 0) state.columnFilters = filters
+    if (present) state.columnFilters = filters
   }
 
   return state

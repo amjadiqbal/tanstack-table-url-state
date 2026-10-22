@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import { useTable } from '@tanstack/react-table'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useTableUrlState } from '../src/index'
+import { notifyUrlChange, useTableUrlState } from '../src/index'
 import { columns, features, orders } from './fixtures'
 
 const setUrl = (search: string) => window.history.replaceState(null, '', '/orders' + search)
@@ -244,5 +244,35 @@ describe('debounce from a later page', () => {
     expect(search()).toBe('?page=3')
     act(() => vi.advanceTimersByTime(300))
     expect(search()).toBe('?q=a')
+  })
+})
+
+describe('clearing a default filter through the hook (0.1.1)', () => {
+  it('survives a reload instead of bringing the default back', () => {
+    setUrl('')
+    const opts = { defaults: { columnFilters: [{ id: 'status', value: 'paid' }] } }
+    const first = renderHook(() => useTableUrlState(opts))
+    act(() => first.result.current.tableOptions.onColumnFiltersChange!([]))
+    return new Promise<void>((resolve) =>
+      setTimeout(() => {
+        expect(search()).toBe('?f.status=')
+        first.unmount()
+        const second = renderHook(() => useTableUrlState(opts))
+        expect(second.result.current.state.columnFilters).toEqual([])
+        resolve()
+      }, 350),
+    )
+  })
+})
+
+describe('notifyUrlChange (0.1.1)', () => {
+  it('picks up pushState from other code', () => {
+    setUrl('')
+    const { result } = renderHook(() => useTableUrlState())
+    act(() => {
+      window.history.pushState(null, '', '/orders?sort=-total')
+      notifyUrlChange()
+    })
+    expect(result.current.state.sorting).toEqual([{ id: 'total', desc: true }])
   })
 })

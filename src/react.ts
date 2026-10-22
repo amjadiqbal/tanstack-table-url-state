@@ -68,12 +68,12 @@ let sharedHistoryAdapter: UrlAdapter | undefined
  * ```
  */
 export function useTableUrlState(options: UseTableUrlStateOptions = {}): UseTableUrlStateResult {
-  const { adapter: givenAdapter, debounceMs = 300, history = 'replace', prefix, keys, defaults, slices } = options
+  const { adapter: givenAdapter, debounceMs = 300, history = 'replace', prefix, keys, defaults, slices, maxPageSize, maxPage } = options
   const adapter = givenAdapter ?? (sharedHistoryAdapter ??= createHistoryAdapter())
 
   // Callers usually pass inline objects, so key the codec on their content.
-  const codecKey = JSON.stringify([prefix, keys, defaults, slices])
-  const codec = useMemo(() => resolveCodec({ prefix, keys, defaults, slices }), [codecKey])
+  const codecKey = JSON.stringify([prefix, keys, defaults, slices, maxPageSize, maxPage])
+  const codec = useMemo(() => resolveCodec({ prefix, keys, defaults, slices, maxPageSize, maxPage }), [codecKey])
 
   const [state, setState] = useState<UrlTableState>(() => decodeState(pickParams(adapter.read(), codec), codec))
 
