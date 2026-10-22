@@ -1,0 +1,35 @@
+{
+  "name": "@amjadiqbal/tanstack-table-url-state",
+  "version": "0.0.0",
+  "description": "URL state (sorting, filters, pagination, column visibility) and CSV/XLSX export for TanStack Table v9.",
+  "license": "MIT",
+  "author": "Amjad Iqbal (https://amjad.com.pk)",
+  "homepage": "https://github.com/amjadiqbal/tanstack-table-url-state#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amjadiqbal/tanstack-table-url-state.git"
+  },
+  "bugs": "https://github.com/amjadiqbal/tanstack-table-url-state/issues",
+  "keywords": [
+    "tanstack",
+    "tanstack-table",
+    "react-table",
+    "url-state",
+    "search-params",
+    "tanstack-router",
+    "csv",
+    "xlsx",
+    "react"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "CHANGELOG.md"
+  ]
+}
